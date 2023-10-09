@@ -12,7 +12,7 @@ void LoadDictionary(FileInfo& Info){
     try {
         if (std::filesystem::exists(Info.RootDirectory) && std::filesystem::is_directory(Info.RootDirectory)) {
             for (const auto &entry : std::filesystem::recursive_directory_iterator(Info.RootDirectory)) {
-                uint32_t PathSize = (entry.path().string().size() - Info.RootDirectory.size()) + 1; // PLUS 1 FOR "/"
+                uint32_t PathSize = (entry.path().string().size() - Info.RootDirectory.size()); // PLUS 1 FOR "/"
                 uint32_t Size = PathSize + 25;
                 uint8_t Type = TYPE_UNKOWN;
 
@@ -62,7 +62,7 @@ void LoadUpdater(FileInfo& Info){
 
                 std::cout << "Updating: " << entry.path().string() << std::endl;
 
-                uint32_t PathSize = (entry.path().string().size() - Info.RootDirectory.size()) + 1; // PLUS 1 FOR "/"
+                uint32_t PathSize = (entry.path().string().size() - Info.RootDirectory.size()); // PLUS 1 FOR "/"
                 uint32_t Size = PathSize + 4;
 
                 std::string Path = entry.path().string();
