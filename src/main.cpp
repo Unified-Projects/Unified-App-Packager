@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <cstring>
 
 void LoadDictionary(FileInfo& Info){
     // Load all directories from within the root path and create a dictionary on them
@@ -83,181 +84,15 @@ void LoadUpdater(FileInfo& Info){
     }
 }
 
-// COMPRESSION HUFFMAN
-#include <queue>
-#include <map>
-#include <unordered_map>
-#include <bitset>
-
-struct HuffmanNode {
-    uint8_t data;
-    size_t freq;
-    HuffmanNode* left;
-    HuffmanNode* right;
-
-    HuffmanNode(uint8_t data, size_t freq) : data(data), freq(freq), left(nullptr), right(nullptr) {}
-};
-
-struct compare {
-    bool operator()(HuffmanNode* l, HuffmanNode* r) {
-        return l->freq > r->freq;
-    }
-};
-
-std::string byteToBinary(uint8_t byte) {
-    std::bitset<8> binary(byte);
-    return binary.to_string();
+// COMPRESSION 
+std::vector<uint8_t> compress(uint8_t* data, size_t size) {
+    if(size && data){}
+    return std::vector<uint8_t>{};
 }
 
-void serializeTree(HuffmanNode* root, std::string& treeStructure) {
-    if (!root) return;
-
-    if (!root->left && !root->right) {  // It's a leaf node
-        treeStructure += "1";
-        treeStructure += byteToBinary(root->data);
-    } else {
-        treeStructure += "0";
-        serializeTree(root->left, treeStructure);
-        serializeTree(root->right, treeStructure);
-    }
-}
-
-HuffmanNode* deserializeTree(const std::string& treeStructure, size_t& index) {
-    if (index >= treeStructure.size()) return nullptr;
-
-    if (treeStructure[index] == '1') {  // Leaf node
-        index++;
-        std::bitset<8> byte(treeStructure.substr(index, 8));
-        index += 8;
-        return new HuffmanNode(static_cast<uint8_t>(byte.to_ulong()), 0);
-    } else {  // Internal node
-        index++;
-        HuffmanNode* newNode = new HuffmanNode('\0', 0);
-        newNode->left = deserializeTree(treeStructure, index);
-        newNode->right = deserializeTree(treeStructure, index);
-        return newNode;
-    }
-}
-
-void buildHuffmanTree(const std::unordered_map<uint8_t, size_t>& frequencies, HuffmanNode*& root) {
-    std::priority_queue<HuffmanNode*, std::vector<HuffmanNode*>, compare> pq;
-
-    for (const auto& pair : frequencies) {
-        pq.push(new HuffmanNode(pair.first, pair.second));
-    }
-
-    while (pq.size() > 1) {
-        HuffmanNode* left = pq.top(); pq.pop();
-        HuffmanNode* right = pq.top(); pq.pop();
-
-        HuffmanNode* newNode = new HuffmanNode('\0', left->freq + right->freq);
-        newNode->left = left;
-        newNode->right = right;
-
-        pq.push(newNode);
-    }
-
-    root = pq.top();
-}
-
-void buildCodesHelper(HuffmanNode* root, std::string str, std::unordered_map<uint8_t, std::string>& huffmanCodes) {
-    if (!root) return;
-
-    if (!root->left && !root->right) {
-        huffmanCodes[root->data] = str;
-    }
-
-    buildCodesHelper(root->left, str + "0", huffmanCodes);
-    buildCodesHelper(root->right, str + "1", huffmanCodes);
-}
-
-std::vector<uint8_t> compress(const uint8_t* data, size_t size) {
-     // Step 1: Calculate frequencies
-    std::unordered_map<uint8_t, size_t> frequencies;
-    for (size_t i = 0; i < size; i++) {
-        frequencies[data[i]]++;
-    }
-
-    // Step 2: Build Huffman tree
-    HuffmanNode* root = nullptr;
-    buildHuffmanTree(frequencies, root);
-
-    // Step 3: Generate Huffman codes
-    std::unordered_map<uint8_t, std::string> huffmanCodes;
-    buildCodesHelper(root, "", huffmanCodes);
-
-    // Step 4: Create compressed binary string
-    std::string compressedBinary = "";
-    for (size_t i = 0; i < size; i++) {
-        compressedBinary += huffmanCodes[data[i]];
-    }
-
-    // Padding compressedBinary to make its size a multiple of 8
-    size_t paddingLength = 8 - (compressedBinary.size() % 8);
-    if (paddingLength == 8) paddingLength = 0; // if it's already a multiple of 8
-    for (size_t i = 0; i < paddingLength; i++) {
-        compressedBinary += "0";
-    }
-
-    std::vector<uint8_t> compressedData;
-    compressedData.push_back(static_cast<uint8_t>(paddingLength)); // Store padding length as the first byte
-    for (size_t i = 0; i < compressedBinary.size(); i += 8) {
-        std::bitset<8> byte(compressedBinary.substr(i, 8));
-        compressedData.push_back(byte.to_ulong());
-    }
-
-    // Step 5: Serialize Huffman tree and prepend it to the compressed data
-    std::string treeStructure;
-    serializeTree(root, treeStructure);
-
-    // Convert tree structure to byte vector
-    std::vector<uint8_t> treeBytes;
-    for (size_t i = 0; i < treeStructure.size(); i += 8) {
-        std::bitset<8> byte(treeStructure.substr(i, 8));
-        treeBytes.push_back(byte.to_ulong());
-    }
-
-    // Append compressed data to tree bytes and return
-    treeBytes.insert(treeBytes.end(), compressedData.begin(), compressedData.end());
-    return treeBytes;
-}
-
-std::vector<uint8_t> uncompress(const char* compressedData, size_t size) {
-    // Step 1: Convert the compressed data to binary string
-    std::string compressedBinary = "";
-    for (size_t i = 0; i < size; i++) {
-        compressedBinary += byteToBinary(static_cast<uint8_t>(compressedData[i]));
-    }
-
-    // Step 2: Extract and rebuild the Huffman tree from the compressed data prefix
-    size_t index = 0;
-    HuffmanNode* root = deserializeTree(compressedBinary, index);
-
-    // Step 3: Decode the compressed data using the Huffman tree
-    HuffmanNode* current = root;
-    std::vector<uint8_t> decompressed;
-
-    // Get the number of padded zeros from the first byte of compressed data
-    size_t paddingLength = static_cast<uint8_t>(compressedData[0]);
-    compressedBinary = compressedBinary.substr(8); // Remove the first 8 bits which represent the padding length
-
-    // Reduce the loop range to exclude the padded bits at the end
-    size_t loopEnd = compressedBinary.size() - paddingLength;
-
-    // Skip any padded bits (added to fit into bytes), start decompressing after the serialized tree
-    while (index < loopEnd) {
-        if (compressedBinary[index] == '0') current = current->left;
-        else current = current->right;
-        index++;
-
-        // If it's a leaf node
-        if (!current->left && !current->right) {
-            decompressed.push_back(current->data);
-            current = root;  // reset back to start for the next character
-        }
-    }
-
-    return decompressed;
+std::vector<uint8_t> uncompress(uint8_t* data, size_t size) {
+    if(size && data){}
+    return std::vector<uint8_t>{};
 }
 // END COMPRESSION
 
