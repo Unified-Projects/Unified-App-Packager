@@ -266,7 +266,7 @@ void ExportData(FileInfo& Info){
             ((uint32_t*)(OutputData + Offset))[0] = DInfoH.size;
             Offset+=4;
 
-            memcpy(OutputData + Offset, ("/" + (std::string(DInfoH.FilePath.c_str() + Info.RootDirectory.size()))).c_str(), DInfoH.size - 4);
+            memcpy(OutputData + Offset, ((std::string(DInfoH.FilePath.c_str() + Info.RootDirectory.size()))).c_str(), DInfoH.size - 4);
             Offset+=DInfoH.size - 4;
         }
     }
@@ -283,7 +283,7 @@ void ExportData(FileInfo& Info){
         (OutputData + Offset)[0] = DInfoH.type;
         Offset+=1;
 
-        memcpy(OutputData + Offset, ("/" + (std::string(DInfoH.FilePath.c_str() + Info.RootDirectory.size()))).c_str(), DInfoH.pathSize);
+        memcpy(OutputData + Offset, ((std::string(DInfoH.FilePath.c_str() + Info.RootDirectory.size()))).c_str(), DInfoH.pathSize);
         Offset+=DInfoH.pathSize;
 
         ((uint64_t*)(OutputData + Offset))[0] = DInfoH.DataOffset;
